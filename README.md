@@ -1,2 +1,2 @@
 # Study materials and source code for **Droidcon Academy** course 
-> # Add Course Name 
+> # Get User Location and Address by Building a Simple Jetpack Compose App in Android 
