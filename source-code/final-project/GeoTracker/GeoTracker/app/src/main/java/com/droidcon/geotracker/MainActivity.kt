@@ -10,8 +10,10 @@ import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +54,7 @@ import com.droidcon.geotracker.ui.theme.Purple40
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import java.util.Locale
+
 
 class MainActivity : ComponentActivity() {
 
@@ -254,12 +257,13 @@ class MainActivity : ComponentActivity() {
         longitude: MutableState<String>,
         address: MutableState<String>
     ) {
-
         if (isLocationEnabled()) {
-            fusedLocationClient?.lastLocation?.addOnCompleteListener {
-                val location: Location? = it.result
-                getAddressFromLocation(location, context, latitude, longitude, address)
-            }
+
+            fusedLocationClient?.getLastLocation()
+                ?.addOnCompleteListener { task ->
+                    val location = task.result
+                    getAddressFromLocation(location, context, latitude, longitude, address)
+                }
 
         } else {
             Toast.makeText(this, "Please turn on location", Toast.LENGTH_LONG).show()
@@ -276,8 +280,9 @@ class MainActivity : ComponentActivity() {
         longitude: MutableState<String>,
         address: MutableState<String>
     ) {
+        Log.e("Tag", "Location is " + location)
         if (location != null) {
-
+            // using geocoder to get address from location.
             val geocoder = Geocoder(context, Locale.getDefault())
             val list: MutableList<Address>? =
                 geocoder.getFromLocation(location.latitude, location.longitude, 1)
@@ -296,5 +301,5 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(context, "Location not found..", Toast.LENGTH_SHORT).show()
         }
     }
-}
 
+}
