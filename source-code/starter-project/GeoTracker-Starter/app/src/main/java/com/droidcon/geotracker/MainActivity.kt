@@ -200,12 +200,7 @@ class MainActivity : ComponentActivity() {
         Button(onClick = {
             val lat: Double = (latitude.value).toDouble()
             val long: Double = (longitude.value).toDouble()
-            val intent =
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse("geo:<lat>,<long>?q=${lat},${long}${"My current location "}")
-                )
-            startActivity(intent)
+            // TODO : Creating and initializing the intent to open the user's location in Google Maps and display the marker on that location. 
 
         }) {
             Text(
