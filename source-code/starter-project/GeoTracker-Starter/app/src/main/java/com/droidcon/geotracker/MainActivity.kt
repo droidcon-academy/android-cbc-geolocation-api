@@ -5,11 +5,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -55,6 +55,10 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
+    /*
+        Creating a variable for Fused Location Provider Client to get user location updates.
+     */
+    private var fusedLocationClient: FusedLocationProviderClient? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,29 +73,110 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
+    /*
+    Creating a Location Preview method to display the UI of the application.
+     */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LocationPreview() {
 
+        /*
+        Creating the variables for latitude, longitude, address as well as boolean variable to hide and show display location on maps button.
+         */
+        val latitude = remember {
+            mutableStateOf("")
+        }
 
-        Scaffold(topBar = { AppBar() }) {
-            it
+        val longitude = remember {
+            mutableStateOf("")
+        }
+
+        val address = remember {
+            mutableStateOf("")
+        }
+
+        val mapButtonVisibility = remember {
+            mutableStateOf(false)
+        }
+
+        /*
+        initializing the variable for fused location provider client.
+         */
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        /*
+        Using Scaffold widget displaying the UI for the application.
+         */
+        Scaffold(topBar = { AppBar() }) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .padding(padding),
 
                 verticalArrangement = Arrangement.Center,
 
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
 
+                /*
+                    Inside this scaffold widget
+                    1) Calling display text view method to display all the text's within our application.
+                    2) Calling display spacer method to display the spacer between two text views.
+                    3) Calling DisplayRequestLocationButton to display the request location button.
+                    4) Calling DisplayShowOnMapButton to display show user location on google maps button.
+                 */
+                DisplayTextView(value = "Latitude : ", data = latitude)
+
+                DisplaySpacer(height = 10)
+
+                DisplayTextView(value = "Longitude : ", data = longitude)
+
+                DisplaySpacer(height = 10)
+
+                DisplayTextView(value = "", data = address)
+
+                DisplaySpacer(height = 20)
+
+                DisplayRequestLocationButton(latitude, longitude, address, mapButtonVisibility)
+
+                DisplaySpacer(height = 20)
+
+                if (mapButtonVisibility.value) {
+                    DisplayShowOnMapButton(latitude, longitude)
+                }
             }
         }
     }
 
 
+    /*
+    Creating a composable function to display the text views.
+     */
+    @Composable
+    fun DisplayTextView(value: String, data: MutableState<String>) {
+        Text(
+            text = value + data.value,
+            color = Color.Black,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Default,
+            fontSize = 15.sp,
+            modifier = Modifier.padding(5.dp),
+            textAlign = TextAlign.Center
+        )
+    }
+
+    /*
+    Creating a composable function to display spacer.
+     */
+    @Composable
+    fun DisplaySpacer(height: Int) {
+        Spacer(modifier = Modifier.height(height.dp))
+    }
+
+    /*
+    Creating a composable function to display app bar.
+     */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun AppBar() {
@@ -100,8 +185,136 @@ class MainActivity : ComponentActivity() {
                 Text(
                     text = "Geo Tracker", color = Color.White, fontWeight = FontWeight.Bold
                 )
-            }, colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Purple40)
+            },
+            colors = TopAppBarDefaults.smallTopAppBarColors(
+                containerColor = Purple40
+            )
         )
     }
+
+    /*
+    Creating a composable function to create a button to show user location on Google Maps.
+     */
+    @Composable
+    fun DisplayShowOnMapButton(latitude: MutableState<String>, longitude: MutableState<String>) {
+        Button(onClick = {
+            val lat: Double = (latitude.value).toDouble()
+            val long: Double = (longitude.value).toDouble()
+            val intent =
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("geo:<lat>,<long>?q=${lat},${long}${"My current location "}")
+                )
+            startActivity(intent)
+
+        }) {
+            Text(
+                text = "Display on Google Map",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Default,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(5.dp)
+            )
+        }
+    }
+
+    /*
+    Creating a composable function to display request location button.
+     */
+    @Composable
+    fun DisplayRequestLocationButton(
+        latitude: MutableState<String>,
+        longitude: MutableState<String>,
+        address: MutableState<String>,
+        mapButtonVisibility: MutableState<Boolean>
+    ) {
+        /*
+            Requesting runtime permissions for getting user location
+         */
+        val context = LocalContext.current
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        val launcherMultiplePermissions = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissionsMap ->
+            val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
+            if (areGranted) {
+                Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
+                mapButtonVisibility.value = true
+                startLocationUpdates(this, latitude, longitude, address)
+            } else {
+                Toast.makeText(
+                    context,
+                    "Location permissions are required to use this application..",
+                    Toast.LENGTH_SHORT
+                ).show()
+                finish()
+            }
+        }
+
+        /*
+        Adding a click listener for the button.
+         */
+        Button(onClick = {
+            if (permissions.all {
+                    ContextCompat.checkSelfPermission(
+                        context, it
+                    ) == PackageManager.PERMISSION_GRANTED
+                }) {
+                mapButtonVisibility.value = true
+                startLocationUpdates(context, latitude, longitude, address)
+            } else {
+                launcherMultiplePermissions.launch(permissions)
+            }
+        }) {
+            Text(
+                text = "Request Current Location",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Default,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(5.dp)
+            )
+        }
+    }
+
+    /*
+    Creating a function to check weather the user's device GPS is enabled or not to get location.
+     */
+    private fun isLocationEnabled(): Boolean {
+        //TODO : Write code in video to check location provider is enabled or not.
+        return false
+    }
+
+    /*
+    Creating a method to get user location's latitude and longitude.
+     */
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates(
+        context: Context,
+        latitude: MutableState<String>,
+        longitude: MutableState<String>,
+        address: MutableState<String>
+    ) {
+        // TODO : Write code in video which is will use Fused Location Provider to get user location
+    }
+
+    /*
+    Creating a method to get address from user location.
+     */
+    private fun getAddressFromLocation(
+        location: Location?,
+        context: Context,
+        latitude: MutableState<String>,
+        longitude: MutableState<String>,
+        address: MutableState<String>
+    ) {
+        //TODO : Write code in video to get address from user location and set the data to our variables to display in the UI.
+    }
 }
+
+
+
 
