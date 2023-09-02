@@ -229,45 +229,11 @@ class MainActivity : ComponentActivity() {
         address: MutableState<String>,
         mapButtonVisibility: MutableState<Boolean>
     ) {
-        /*
-            Requesting runtime permissions for getting user location
-         */
-        val context = LocalContext.current
-        val permissions = arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        val launcherMultiplePermissions = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissionsMap ->
-            val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
-            if (areGranted) {
-                Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
-                mapButtonVisibility.value = true
-                startLocationUpdates(this, latitude, longitude, address)
-            } else {
-                Toast.makeText(
-                    context,
-                    "Location permissions are required to use this application..",
-                    Toast.LENGTH_SHORT
-                ).show()
-                finish()
-            }
-        }
-
-        /*
-        Adding a click listener for the button.
-         */
+        
+       //TODO : Checking and Requesting runtime permissions for getting user location        
+        
         Button(onClick = {
-            if (permissions.all {
-                    ContextCompat.checkSelfPermission(
-                        context, it
-                    ) == PackageManager.PERMISSION_GRANTED
-                }) {
-                mapButtonVisibility.value = true
-                startLocationUpdates(context, latitude, longitude, address)
-            } else {
-                launcherMultiplePermissions.launch(permissions)
-            }
+          // TODO : Check and request runtime permission for user location inside on click method. 
         }) {
             Text(
                 text = "Request Current Location",
