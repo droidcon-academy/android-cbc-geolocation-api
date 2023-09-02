@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
@@ -13,7 +12,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -77,7 +75,6 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LocationPreview() {
-
         val latitude = remember {
             mutableStateOf("")
         }
@@ -96,12 +93,12 @@ class MainActivity : ComponentActivity() {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        Scaffold(topBar = { AppBar() }) {
-            it
+        Scaffold(topBar = { AppBar() }) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .padding(padding),
 
                 verticalArrangement = Arrangement.Center,
 
@@ -158,7 +155,10 @@ class MainActivity : ComponentActivity() {
                 Text(
                     text = "Geo Tracker", color = Color.White, fontWeight = FontWeight.Bold
                 )
-            }, colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Purple40)
+            },
+            colors = TopAppBarDefaults.smallTopAppBarColors(
+                containerColor = Purple40
+            )
         )
     }
 
@@ -193,12 +193,10 @@ class MainActivity : ComponentActivity() {
         address: MutableState<String>,
         mapButtonVisibility: MutableState<Boolean>
     ) {
-
         val context = LocalContext.current
         val permissions = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
         )
-
         val launcherMultiplePermissions = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { permissionsMap ->
@@ -216,7 +214,6 @@ class MainActivity : ComponentActivity() {
                 finish()
             }
         }
-
 
         Button(onClick = {
             if (permissions.all {
@@ -259,7 +256,7 @@ class MainActivity : ComponentActivity() {
     ) {
         if (isLocationEnabled()) {
 
-            fusedLocationClient?.getLastLocation()
+            fusedLocationClient?.lastLocation
                 ?.addOnCompleteListener { task ->
                     val location = task.result
                     getAddressFromLocation(location, context, latitude, longitude, address)
@@ -272,7 +269,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     private fun getAddressFromLocation(
         location: Location?,
         context: Context,
@@ -280,28 +276,33 @@ class MainActivity : ComponentActivity() {
         longitude: MutableState<String>,
         address: MutableState<String>
     ) {
-        Log.e("Tag", "Location is " + location)
         if (location != null) {
-            // using geocoder to get address from location.
             val geocoder = Geocoder(context, Locale.getDefault())
-            val list: MutableList<Address>? =
-                geocoder.getFromLocation(location.latitude, location.longitude, 1)
-            if (list!!.isNotEmpty()) {
-
-                latitude.value = list[0].latitude.toString()
-                longitude.value = list[0].longitude.toString()
-                address.value =
-                    "Country : ${list[0].countryName} \nLocality : ${list[0].locality} \nAddress : ${
-                        list[0].getAddressLine(
-                            0
-                        )
-                    }"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocation(
+                    location.latitude,
+                    location.longitude,
+                    1
+                ) { addressList ->
+                    if (addressList.isNotEmpty()) {
+                        latitude.value = addressList[0].latitude.toString()
+                        longitude.value = addressList[0].longitude.toString()
+                        address.value =
+                            "Country : ${addressList[0].countryName} \nLocality : ${addressList[0].locality} \nAddress : ${
+                                addressList[0].getAddressLine(
+                                    0
+                                )
+                            }"
+                    } else {
+                        Toast.makeText(context, "Location not found..", Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
             }
         } else {
             Toast.makeText(context, "Location not found..", Toast.LENGTH_SHORT).show()
         }
     }
-
 }
 
 
